@@ -17,6 +17,16 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
         return user
 
+    def validate_email(self, value):
+        if User.objects.filter(email=value).exists():
+            raise serializers.ValidationError("Email is already in use.")
+        return value
+    
+    def validate_password(self, value):
+        if len(value) < 6:
+            raise serializers.ValidationError("Password too short")
+        return value
+
 
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
