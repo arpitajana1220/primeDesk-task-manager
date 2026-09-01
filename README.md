@@ -1,6 +1,6 @@
 # PrimeDesk – Full Stack Task Management Web App
 
-A scalable, secure, and responsive task management web application built as part of the **Primetrade.ai Assignment**. The project demonstrates full-stack development skills with authentication, dashboard, CRUD operations, and modern UI.
+A scalable, secure, and responsive task management web application. The project demonstrates full-stack development skills with authentication, a dashboard, CRUD operations, and a modern UI.
 
 ---
 
