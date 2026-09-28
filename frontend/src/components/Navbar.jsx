@@ -10,9 +10,9 @@ export default function Navbar() {
 
   const { logout } = useContext(AuthContext);
 
-  const token = localStorage.getItem("token");
+  const token = localStorage.getItem("access");
   const [openProfile, setOpenProfile] = useState(false);  
-
+  
   return (
     <nav className="border-b bg-white shadow-sm">
       <div className="container mx-auto px-4 py-4">
