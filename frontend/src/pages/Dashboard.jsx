@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Plus } from "lucide-react";
 import Navbar from "../components/Navbar";
 import api from "../api/axios";
@@ -8,12 +8,14 @@ import TaskCard from "../components/TaskCard";
 import TaskModal from "../components/TaskModal";
 import Pagination from "../components/Pagination";
 
-const ITEMS_PER_PAGE = 6;
+const ITEMS_PER_PAGE = 6; // must match PAGE_SIZE in settings.py
 
 export default function Dashboard() {
   const [tasks, setTasks] = useState([]);
+  const [totalCount, setTotalCount] = useState(0);
 
   const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [priorityFilter, setPriorityFilter] = useState("all");
 
@@ -24,72 +26,69 @@ export default function Dashboard() {
 
   const [loading, setLoading] = useState(false);
 
-  /* =========================
-     Load Tasks from Backend
-     ========================= */
-  const loadTasks = async () => {
+  const requestId = useRef(0);
+  const totalPages = Math.ceil(totalCount / ITEMS_PER_PAGE);
+
+  /* Debounce search, and go back to page 1 when it applies */
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(searchTerm);
+      setCurrentPage(1);
+    }, 400);
+    return () => clearTimeout(t);
+  }, [searchTerm]);
+
+  const handleStatusChange = (value) => {
+    setStatusFilter(value);
+    setCurrentPage(1);
+  };
+
+  const handlePriorityChange = (value) => {
+    setPriorityFilter(value);
+    setCurrentPage(1);
+  };
+
+  /* Load one page from the backend */
+  const loadTasks = useCallback(async () => {
+    const id = ++requestId.current; // ignore stale responses
     try {
       setLoading(true);
 
-      const res = await api.get("tasks/");
-      setTasks(res.data);
+      const params = { page: currentPage };
+      if (debouncedSearch.trim()) params.search = debouncedSearch.trim();
+      if (statusFilter !== "all") params.status = statusFilter;
+      if (priorityFilter !== "all") params.priority = priorityFilter;
 
+      const res = await api.get("tasks/", { params });
+      if (id !== requestId.current) return;
+
+      setTasks(res.data.results);
+      setTotalCount(res.data.count);
     } catch (err) {
+      if (id !== requestId.current) return;
+
+      // Last item on the last page was deleted -> step back one page
+      if (err.response?.status === 404 && currentPage > 1) {
+        setCurrentPage((p) => p - 1);
+        return;
+      }
       console.error("Failed to load tasks", err);
       alert("Failed to load tasks");
     } finally {
-      setLoading(false);
+      if (id === requestId.current) setLoading(false);
     }
-  };
+  }, [currentPage, debouncedSearch, statusFilter, priorityFilter]);
 
   useEffect(() => {
     loadTasks();
-  }, []);
+  }, [loadTasks]);
 
-  /* =========================
-     Filters
-     ========================= */
-  const filteredTasks = useMemo(() => {
-    return tasks.filter((task) => {
-      const matchesSearch =
-        task.title.toLowerCase().includes(searchTerm.toLowerCase());
-
-      const matchesStatus =
-        statusFilter === "all" || task.status === statusFilter;
-
-      const matchesPriority =
-        priorityFilter === "all" || task.priority === priorityFilter;
-
-      return matchesSearch && matchesStatus && matchesPriority;
-    });
-  }, [tasks, searchTerm, statusFilter, priorityFilter]);
-
-  /* =========================
-     Pagination
-     ========================= */
-  const totalPages = Math.ceil(filteredTasks.length / ITEMS_PER_PAGE);
-
-  const paginatedTasks = useMemo(() => {
-    const start = (currentPage - 1) * ITEMS_PER_PAGE;
-
-    return filteredTasks.slice(start, start + ITEMS_PER_PAGE);
-  }, [filteredTasks, currentPage]);
-
-  /* Reset page on filter */
-  useEffect(() => {
-    setCurrentPage(1);
-  }, [searchTerm, statusFilter, priorityFilter]);
-
-  /* =========================
-     CRUD
-     ========================= */
-
+  /* CRUD */
   const handleCreateTask = async (data) => {
     try {
       await api.post("tasks/", data);
       await loadTasks();
       setIsModalOpen(false);
-
     } catch (err) {
       console.error(err);
       alert("Failed to create task");
@@ -98,14 +97,11 @@ export default function Dashboard() {
 
   const handleUpdateTask = async (data) => {
     if (!editingTask) return;
-
     try {
       await api.put(`tasks/${editingTask.id}/`, data);
-
       await loadTasks();
       setEditingTask(null);
       setIsModalOpen(false);
-
     } catch (err) {
       console.error(err);
       alert("Failed to update task");
@@ -114,11 +110,9 @@ export default function Dashboard() {
 
   const handleDeleteTask = async (id) => {
     if (!window.confirm("Delete this task?")) return;
-
     try {
       await api.delete(`tasks/${id}/`);
       await loadTasks();
-
     } catch (err) {
       console.error(err);
       alert("Failed to delete task");
@@ -135,10 +129,6 @@ export default function Dashboard() {
     setIsModalOpen(false);
   };
 
-  /* =========================
-     Render
-     ========================= */
-
   return (
     <>
       <Navbar />
@@ -146,22 +136,17 @@ export default function Dashboard() {
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         statusFilter={statusFilter}
-        onStatusChange={setStatusFilter}
+        onStatusChange={handleStatusChange}
         priorityFilter={priorityFilter}
-        onPriorityChange={setPriorityFilter}
+        onPriorityChange={handlePriorityChange}
       />
 
       <main className="container mx-auto px-4 py-8">
-
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
-
           <div>
             <h1 className="text-3xl font-bold mb-2">Tasks</h1>
-
             <p className="text-gray-600">
-              {filteredTasks.length}{" "}
-              {filteredTasks.length === 1 ? "task" : "tasks"} found
+              {totalCount} {totalCount === 1 ? "task" : "tasks"} found
             </p>
           </div>
 
@@ -174,15 +159,11 @@ export default function Dashboard() {
           </button>
         </div>
 
-        {/* Content */}
         {loading ? (
-          <p className="text-center py-16 text-gray-500">
-            Loading tasks...
-          </p>
-        ) : paginatedTasks.length > 0 ? (
-
+          <p className="text-center py-16 text-gray-500">Loading tasks...</p>
+        ) : tasks.length > 0 ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-            {paginatedTasks.map((task) => (
+            {tasks.map((task) => (
               <TaskCard
                 key={task.id}
                 task={task}
@@ -191,18 +172,14 @@ export default function Dashboard() {
               />
             ))}
           </div>
-
         ) : (
-
           <div className="text-center py-16">
             <p className="text-gray-500 text-lg">
               No tasks found. Create your first task.
             </p>
           </div>
-
         )}
 
-        {/* Pagination */}
         {totalPages > 1 && (
           <div className="mt-8">
             <Pagination
@@ -212,10 +189,8 @@ export default function Dashboard() {
             />
           </div>
         )}
-
       </main>
 
-      {/* Modal */}
       <TaskModal
         isOpen={isModalOpen}
         onClose={handleCloseModal}
