@@ -8,11 +8,13 @@ export default function Register() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [errors, setErrors] = useState({});
 
   const navigate = useNavigate();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrors({});
 
     try {
       setLoading(true);
@@ -23,10 +25,23 @@ export default function Register() {
         password,
       });
 
-      alert("Registration successful! Please login.");
-      navigate("/");
+      navigate("/", { state: { registered: true } });
     } catch (err) {
-      alert("Registration failed. Try again.");
+      const data = err.response?.data;
+
+      if (data && typeof data === "object") {
+        // DRF sends { field_name: ["message", ...], ... }
+        const fieldErrors = {};
+        Object.entries(data).forEach(([field, messages]) => {
+          fieldErrors[field] = Array.isArray(messages)
+            ? messages.join(" ")
+            : String(messages);
+        });
+        setErrors(fieldErrors);
+      } else {
+        setErrors({ general: "Registration failed. Please try again." });
+      }
+
       console.error(err);
     } finally {
       setLoading(false);
@@ -55,6 +70,12 @@ export default function Register() {
         <div className="bg-white rounded-lg shadow-md p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
 
+            {errors.general && (
+              <div className="bg-red-50 text-red-700 text-sm px-4 py-3 rounded-lg">
+                {errors.general}
+              </div>
+            )}
+
             {/* Username */}
             <div>
               <label className="block text-sm font-medium mb-2">
@@ -72,10 +93,15 @@ export default function Register() {
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   required
-                  className="w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
+                    errors.username ? "border-red-400" : ""
+                  }`}
                   placeholder="Enter your username"
                 />
               </div>
+              {errors.username && (
+                <p className="text-red-600 text-sm mt-1">{errors.username}</p>
+              )}
             </div>
 
             {/* Email */}
@@ -95,10 +121,15 @@ export default function Register() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
-                  className="w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
+                    errors.email ? "border-red-400" : ""
+                  }`}
                   placeholder="Enter your email"
                 />
               </div>
+              {errors.email && (
+                <p className="text-red-600 text-sm mt-1">{errors.email}</p>
+              )}
             </div>
 
             {/* Password */}
@@ -118,11 +149,16 @@ export default function Register() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={6}
-                  className="w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500"
-                  placeholder="Min 6 characters"
+                  minLength={8}
+                  className={`w-full pl-10 pr-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 ${
+                    errors.password ? "border-red-400" : ""
+                  }`}
+                  placeholder="Min 8 characters, not too common"
                 />
               </div>
+              {errors.password && (
+                <p className="text-red-600 text-sm mt-1">{errors.password}</p>
+              )}
             </div>
 
             {/* Button */}

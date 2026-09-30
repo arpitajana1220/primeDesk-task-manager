@@ -1,28 +1,34 @@
-import { useState, useContext } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { useState, useContext, useEffect } from "react";
+import { Link, useNavigate, useLocation } from "react-router-dom";
 import { Lock, User as UserIcon, ArrowRight } from "lucide-react";
 
 import { AuthContext } from "../auth/AuthContext";
-// import api from "../api/axios";
 
 export default function Login() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [justRegistered, setJustRegistered] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const { login } = useContext(AuthContext);
+
+  useEffect(() => {
+    if (location.state?.registered) {
+      setJustRegistered(true);
+      // clear it so refreshing or navigating back doesn't re-show the banner
+      window.history.replaceState({}, document.title);
+    }
+  }, [location.state]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
     try {
       setLoading(true);
-
       await login(username, password);
-
-      // alert("Login successful!");
       navigate("/dashboard");
     } catch (err) {
       setError("Invalid username or password");
@@ -33,7 +39,6 @@ export default function Login() {
   };
 
   return (
-    
     <div className="min-h-screen bg-gray-50 flex items-center justify-center px-4">
       <div className="max-w-md w-full">
 
@@ -51,11 +56,19 @@ export default function Login() {
             Sign in to continue to your dashboard
           </p>
         </div>
+
+        {justRegistered && (
+          <p className="text-green-700 bg-green-50 text-sm mb-3 px-4 py-3 rounded-lg">
+            Registration successful! Please sign in.
+          </p>
+        )}
+
         {error && (
           <p className="text-red-500 text-sm mb-3">
             {error}
           </p>
         )}
+
         {/* Form */}
         <div className="bg-white rounded-lg shadow-md p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
