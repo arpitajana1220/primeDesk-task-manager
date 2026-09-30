@@ -53,7 +53,8 @@ A scalable, secure, and responsive task management web application. The project 
 
 ### Database
 
-* Supabase (PostgreSQL)
+* SQLite (development)
+* Schema designed to move to PostgreSQL (e.g. Supabase) for production — Django's ORM makes this a config change in `DATABASES`, not a code rewrite
 
 ### Tools
 
@@ -91,7 +92,8 @@ frontend/src/
 * JWT Authentication
 * Token Validation Middleware
 * Protected Routes
-* Auto Logout on Token Expiry
+* Automatic Access-Token Refresh (falls back to logout only if the refresh token itself is invalid or expired)
+* Password Strength Validation (Django's built-in validators — length, similarity, common-password, numeric checks)
 * Environment Variables for Secrets
 
 ---
@@ -154,6 +156,25 @@ refresh_token = <Refresh Token>
 task_id = <Task ID>
 ```
 
+### Task List Query Params
+
+```
+GET /api/tasks/?page=1&search=<title text>&status=<pending|in-progress|completed>&priority=<low|medium|high>
+```
+
+Results are paginated (6 per page) and returned as `{ count, next, previous, results }`.
+
+---
+
+## ✅ Testing
+
+Backend has automated test coverage for auth (register, login, refresh) and task CRUD, including that users can't read, edit, or delete another user's tasks.
+
+```bash
+cd backend
+python manage.py test
+```
+
 ---
 
 ## 💻 Setup Instructions
@@ -171,11 +192,19 @@ task_id = <Task ID>
 ```bash
 cd backend
 python -m venv venv
+
+# Windows
 venv\Scripts\activate
+
+# macOS / Linux
+source venv/bin/activate
+
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py runserver
 ```
+
+Copy `.env.example` to `.env` in `backend/` and fill in your own `SECRET_KEY` before running.
 
 Backend runs at:
 
@@ -293,6 +322,7 @@ This project is developed for evaluation purposes under Primetrade.ai assignment
 * ✔ API Documentation
 * ✔ Scalable Architecture
 * ✔ Clean Codebase
+* ✔ Automated Tests
 * ✔ Proper Git Practices
 
 ---
