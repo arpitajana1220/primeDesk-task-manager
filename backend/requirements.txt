@@ -12,3 +12,6 @@ setuptools==82.0.0
 sqlparse==0.5.5
 tzdata==2025.3
 wheel==0.46.3
+gunicorn
+whitenoise
+dj-database-url
