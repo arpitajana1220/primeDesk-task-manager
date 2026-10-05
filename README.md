@@ -3,8 +3,10 @@
 A scalable, secure, and responsive task management web application. The project demonstrates full-stack development skills with authentication, a dashboard, CRUD operations, and a modern UI.
 
 ---
+## Live Demo🚀
+https://github.com/arpitajana1220/primeDesk-task-manager
 
-## 🚀 Live Features
+## Features
 
 ### 🔐 Authentication
 
